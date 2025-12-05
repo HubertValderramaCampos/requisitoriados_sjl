@@ -6,13 +6,22 @@
   "scripts": {
     "dev": "vite",
     "build": "tsc && vite build",
-    "preview": "vite preview"
+    "preview": "vite preview",
+    "setup": "node download-models.js"
   },
-  "keywords": ["webcam", "detection", "peru", "security"],
+  "keywords": [
+    "webcam",
+    "detection",
+    "peru",
+    "security"
+  ],
   "author": "Llama Solutions",
   "license": "MIT",
   "devDependencies": {
     "typescript": "^5.3.3",
     "vite": "^5.0.8"
+  },
+  "dependencies": {
+    "face-api.js": "^0.22.2"
   }
 }

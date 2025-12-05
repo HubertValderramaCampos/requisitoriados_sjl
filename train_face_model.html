@@ -1,0 +1,807 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Entrenamiento de Reconocimiento Facial con Webcam</title>
+    <script defer src="node_modules/face-api.js/dist/face-api.min.js"></script>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Oxygen, Ubuntu, Cantarell, sans-serif;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            min-height: 100vh;
+            padding: 20px;
+        }
+
+        .container {
+            max-width: 1400px;
+            margin: 0 auto;
+            background: white;
+            border-radius: 20px;
+            padding: 40px;
+            box-shadow: 0 20px 60px rgba(0, 0, 0, 0.3);
+        }
+
+        h1 {
+            color: #333;
+            margin-bottom: 10px;
+            font-size: 2.5em;
+            text-align: center;
+        }
+
+        .subtitle {
+            color: #666;
+            margin-bottom: 30px;
+            font-size: 1.1em;
+            text-align: center;
+        }
+
+        .main-grid {
+            display: grid;
+            grid-template-columns: 1fr 400px;
+            gap: 30px;
+            margin-bottom: 30px;
+        }
+
+        @media (max-width: 1024px) {
+            .main-grid {
+                grid-template-columns: 1fr;
+            }
+        }
+
+        .section {
+            margin-bottom: 30px;
+            padding: 25px;
+            border: 2px solid #e0e0e0;
+            border-radius: 15px;
+            background: #f8f9fa;
+        }
+
+        .section h2 {
+            color: #667eea;
+            margin-bottom: 20px;
+            display: flex;
+            align-items: center;
+            gap: 10px;
+            font-size: 1.3em;
+        }
+
+        .step-number {
+            background: #667eea;
+            color: white;
+            width: 35px;
+            height: 35px;
+            border-radius: 50%;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-weight: bold;
+        }
+
+        .webcam-container {
+            position: relative;
+            width: 100%;
+            aspect-ratio: 4/3;
+            background: #000;
+            border-radius: 15px;
+            overflow: hidden;
+            margin-bottom: 20px;
+            border: 3px solid #667eea;
+        }
+
+        #webcam {
+            width: 100%;
+            height: 100%;
+            object-fit: cover;
+        }
+
+        #overlay {
+            position: absolute;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            pointer-events: none;
+        }
+
+        .camera-overlay {
+            position: absolute;
+            top: 50%;
+            left: 50%;
+            transform: translate(-50%, -50%);
+            width: 300px;
+            height: 300px;
+            border: 3px dashed rgba(102, 126, 234, 0.8);
+            border-radius: 50%;
+            pointer-events: none;
+            animation: pulse 2s infinite;
+        }
+
+        @keyframes pulse {
+            0%, 100% { opacity: 0.5; transform: translate(-50%, -50%) scale(1); }
+            50% { opacity: 1; transform: translate(-50%, -50%) scale(1.05); }
+        }
+
+        .capture-hint {
+            position: absolute;
+            bottom: 20px;
+            left: 50%;
+            transform: translateX(-50%);
+            background: rgba(0, 0, 0, 0.7);
+            color: white;
+            padding: 10px 20px;
+            border-radius: 10px;
+            font-size: 0.9em;
+            text-align: center;
+            pointer-events: none;
+        }
+
+        input[type="text"] {
+            width: 100%;
+            padding: 15px;
+            border: 2px solid #e0e0e0;
+            border-radius: 10px;
+            font-size: 1em;
+            margin-bottom: 15px;
+            transition: border 0.3s;
+        }
+
+        input[type="text"]:focus {
+            outline: none;
+            border-color: #667eea;
+        }
+
+        .btn {
+            padding: 15px 30px;
+            border: none;
+            border-radius: 10px;
+            font-size: 1em;
+            font-weight: 600;
+            cursor: pointer;
+            transition: all 0.3s;
+            margin-right: 10px;
+            margin-bottom: 10px;
+            display: inline-flex;
+            align-items: center;
+            gap: 8px;
+        }
+
+        .btn-primary {
+            background: #667eea;
+            color: white;
+        }
+
+        .btn-primary:hover:not(:disabled) {
+            background: #5568d3;
+            transform: translateY(-2px);
+            box-shadow: 0 5px 15px rgba(102, 126, 234, 0.4);
+        }
+
+        .btn-success {
+            background: #10b981;
+            color: white;
+        }
+
+        .btn-success:hover:not(:disabled) {
+            background: #059669;
+            transform: translateY(-2px);
+            box-shadow: 0 5px 15px rgba(16, 185, 129, 0.4);
+        }
+
+        .btn-danger {
+            background: #ef4444;
+            color: white;
+        }
+
+        .btn-danger:hover:not(:disabled) {
+            background: #dc2626;
+            transform: translateY(-2px);
+            box-shadow: 0 5px 15px rgba(239, 68, 68, 0.4);
+        }
+
+        .btn:disabled {
+            opacity: 0.5;
+            cursor: not-allowed;
+        }
+
+        .photos-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fill, minmax(120px, 1fr));
+            gap: 10px;
+            margin-top: 20px;
+        }
+
+        .photo-item {
+            position: relative;
+            border-radius: 10px;
+            overflow: hidden;
+            box-shadow: 0 4px 10px rgba(0, 0, 0, 0.1);
+            background: white;
+        }
+
+        .photo-item img {
+            width: 100%;
+            height: 120px;
+            object-fit: cover;
+        }
+
+        .photo-badge {
+            position: absolute;
+            top: 5px;
+            right: 5px;
+            background: #10b981;
+            color: white;
+            padding: 3px 8px;
+            border-radius: 5px;
+            font-size: 0.7em;
+            font-weight: 600;
+        }
+
+        .photo-badge.error {
+            background: #ef4444;
+        }
+
+        .delete-photo {
+            position: absolute;
+            top: 5px;
+            left: 5px;
+            background: rgba(239, 68, 68, 0.9);
+            color: white;
+            border: none;
+            border-radius: 50%;
+            width: 25px;
+            height: 25px;
+            cursor: pointer;
+            font-weight: bold;
+            transition: all 0.2s;
+        }
+
+        .delete-photo:hover {
+            background: #dc2626;
+            transform: scale(1.1);
+        }
+
+        .status {
+            padding: 15px;
+            border-radius: 10px;
+            margin: 15px 0;
+            font-weight: 500;
+        }
+
+        .status-info {
+            background: #dbeafe;
+            color: #1e40af;
+            border-left: 4px solid #3b82f6;
+        }
+
+        .status-success {
+            background: #d1fae5;
+            color: #065f46;
+            border-left: 4px solid #10b981;
+        }
+
+        .status-error {
+            background: #fee2e2;
+            color: #991b1b;
+            border-left: 4px solid #ef4444;
+        }
+
+        .status-warning {
+            background: #fef3c7;
+            color: #92400e;
+            border-left: 4px solid #f59e0b;
+        }
+
+        .info-box {
+            background: #fef3c7;
+            border-left: 4px solid #f59e0b;
+            padding: 15px;
+            border-radius: 10px;
+            margin: 15px 0;
+        }
+
+        .info-box strong {
+            color: #92400e;
+        }
+
+        .info-box ul {
+            margin-top: 10px;
+            margin-left: 20px;
+        }
+
+        .stats {
+            display: grid;
+            grid-template-columns: repeat(3, 1fr);
+            gap: 15px;
+            margin-top: 20px;
+        }
+
+        .stat-card {
+            background: white;
+            padding: 20px;
+            border-radius: 10px;
+            text-align: center;
+            box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1);
+        }
+
+        .stat-value {
+            font-size: 2.5em;
+            font-weight: bold;
+            color: #667eea;
+        }
+
+        .stat-label {
+            font-size: 0.9em;
+            color: #666;
+            margin-top: 5px;
+        }
+
+        .loading {
+            display: inline-block;
+            width: 20px;
+            height: 20px;
+            border: 3px solid #f3f3f3;
+            border-top: 3px solid #667eea;
+            border-radius: 50%;
+            animation: spin 1s linear infinite;
+        }
+
+        @keyframes spin {
+            0% { transform: rotate(0deg); }
+            100% { transform: rotate(360deg); }
+        }
+
+        .countdown {
+            position: absolute;
+            top: 50%;
+            left: 50%;
+            transform: translate(-50%, -50%);
+            font-size: 8em;
+            font-weight: bold;
+            color: #667eea;
+            text-shadow: 0 0 20px rgba(102, 126, 234, 0.5);
+            animation: countdownPulse 1s ease-out;
+            pointer-events: none;
+            z-index: 10;
+        }
+
+        @keyframes countdownPulse {
+            0% { transform: translate(-50%, -50%) scale(0); opacity: 0; }
+            50% { transform: translate(-50%, -50%) scale(1.2); opacity: 1; }
+            100% { transform: translate(-50%, -50%) scale(1); opacity: 1; }
+        }
+
+        .flash {
+            position: absolute;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background: white;
+            opacity: 0;
+            pointer-events: none;
+            animation: flashEffect 0.3s ease-out;
+        }
+
+        @keyframes flashEffect {
+            0% { opacity: 0; }
+            50% { opacity: 0.8; }
+            100% { opacity: 0; }
+        }
+
+        .code-block {
+            background: #1e293b;
+            color: #e2e8f0;
+            padding: 20px;
+            border-radius: 10px;
+            margin-top: 15px;
+            font-family: 'Courier New', monospace;
+            font-size: 0.9em;
+            overflow-x: auto;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <h1>🎯 Entrenamiento de Reconocimiento Facial</h1>
+        <p class="subtitle">Captura múltiples fotos de tu rostro usando la webcam para entrenar el modelo de IA</p>
+
+        <div class="section">
+            <h2>
+                <span class="step-number">1</span>
+                Configuración Inicial
+            </h2>
+            <div id="loadingStatus" class="status status-info">
+                Cargando modelos de IA... <span class="loading"></span>
+            </div>
+            <div class="info-box">
+                <strong>Importante:</strong> Captura fotos con diferentes condiciones:
+                <ul>
+                    <li>Diferentes ángulos (frontal, ligeramente rotado a izquierda/derecha)</li>
+                    <li>Diferentes expresiones faciales (neutral, sonriendo, serio)</li>
+                    <li>Con y sin accesorios (lentes, gorra si usas)</li>
+                    <li>Muévete para capturar diferentes iluminaciones</li>
+                    <li><strong>Recomendado: 10-20 fotos para mejor precisión</strong></li>
+                </ul>
+            </div>
+        </div>
+
+        <div class="main-grid">
+            <div>
+                <div class="section">
+                    <h2>
+                        <span class="step-number">2</span>
+                        Captura de Fotos
+                    </h2>
+
+                    <label for="personName" style="display: block; margin-bottom: 10px; font-weight: 600; color: #333;">
+                        Tu Nombre Completo:
+                    </label>
+                    <input type="text" id="personName" placeholder="Ej: Juan Pérez García" required>
+
+                    <div class="webcam-container">
+                        <video id="webcam" autoplay playsinline></video>
+                        <canvas id="overlay"></canvas>
+                        <div class="camera-overlay"></div>
+                        <div class="capture-hint">Centra tu rostro en el círculo</div>
+                    </div>
+
+                    <div style="margin-bottom: 15px;">
+                        <button id="startCameraBtn" class="btn btn-primary">
+                            📹 Iniciar Cámara
+                        </button>
+                        <button id="captureBtn" class="btn btn-success" disabled>
+                            📸 Capturar Foto (Espacio)
+                        </button>
+                        <button id="autoCaptureBtn" class="btn btn-primary" disabled>
+                            ⏱️ Auto-Captura (10 fotos)
+                        </button>
+                        <button id="stopCameraBtn" class="btn btn-danger" disabled>
+                            ⏹️ Detener Cámara
+                        </button>
+                    </div>
+
+                    <div class="stats">
+                        <div class="stat-card">
+                            <div class="stat-value" id="photoCount">0</div>
+                            <div class="stat-label">Fotos Capturadas</div>
+                        </div>
+                        <div class="stat-card">
+                            <div class="stat-value" id="successCount">0</div>
+                            <div class="stat-label">Rostros Detectados</div>
+                        </div>
+                        <div class="stat-card">
+                            <div class="stat-value" id="failCount">0</div>
+                            <div class="stat-label">Fallidos</div>
+                        </div>
+                    </div>
+                </div>
+
+                <div class="section">
+                    <h2>
+                        <span class="step-number">3</span>
+                        Exportar Datos
+                    </h2>
+                    <button id="exportBtn" class="btn btn-success" disabled>
+                        💾 Descargar Datos de Entrenamiento
+                    </button>
+                    <button id="clearBtn" class="btn btn-danger">
+                        🗑️ Limpiar Todas las Fotos
+                    </button>
+                    <div id="exportInfo"></div>
+                </div>
+            </div>
+
+            <div>
+                <div class="section">
+                    <h2>Fotos Capturadas</h2>
+                    <div id="photosGrid" class="photos-grid"></div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        let faceDescriptors = [];
+        let personName = '';
+        let stream = null;
+        let modelsLoaded = false;
+        let capturedPhotos = [];
+        let isAutoCapturing = false;
+
+        const webcam = document.getElementById('webcam');
+        const canvas = document.getElementById('overlay');
+        const startCameraBtn = document.getElementById('startCameraBtn');
+        const captureBtn = document.getElementById('captureBtn');
+        const autoCaptureBtn = document.getElementById('autoCaptureBtn');
+        const stopCameraBtn = document.getElementById('stopCameraBtn');
+        const exportBtn = document.getElementById('exportBtn');
+        const clearBtn = document.getElementById('clearBtn');
+        const personNameInput = document.getElementById('personName');
+
+        // Cargar modelos al iniciar
+        async function loadModels() {
+            const loadingStatus = document.getElementById('loadingStatus');
+            try {
+                await faceapi.nets.ssdMobilenetv1.loadFromUri('/models');
+                await faceapi.nets.faceLandmark68Net.loadFromUri('/models');
+                await faceapi.nets.faceRecognitionNet.loadFromUri('/models');
+
+                modelsLoaded = true;
+                loadingStatus.className = 'status status-success';
+                loadingStatus.innerHTML = '✅ Modelos cargados correctamente. Sistema listo.';
+            } catch (error) {
+                loadingStatus.className = 'status status-error';
+                loadingStatus.innerHTML = '❌ Error al cargar modelos: ' + error.message;
+                console.error('Error cargando modelos:', error);
+            }
+        }
+
+        // Iniciar cámara
+        async function startCamera() {
+            try {
+                stream = await navigator.mediaDevices.getUserMedia({
+                    video: {
+                        width: { ideal: 1280 },
+                        height: { ideal: 720 },
+                        facingMode: 'user'
+                    }
+                });
+
+                webcam.srcObject = stream;
+
+                webcam.onloadedmetadata = () => {
+                    canvas.width = webcam.videoWidth;
+                    canvas.height = webcam.videoHeight;
+                };
+
+                startCameraBtn.disabled = true;
+                captureBtn.disabled = false;
+                autoCaptureBtn.disabled = false;
+                stopCameraBtn.disabled = false;
+
+                detectFaceInVideo();
+            } catch (error) {
+                alert('Error al acceder a la cámara: ' + error.message);
+            }
+        }
+
+        // Detección en tiempo real
+        async function detectFaceInVideo() {
+            if (!stream || !modelsLoaded) return;
+
+            try {
+                const detections = await faceapi
+                    .detectSingleFace(webcam)
+                    .withFaceLandmarks();
+
+                const ctx = canvas.getContext('2d');
+                ctx.clearRect(0, 0, canvas.width, canvas.height);
+
+                if (detections) {
+                    const resized = faceapi.resizeResults(detections, {
+                        width: webcam.videoWidth,
+                        height: webcam.videoHeight
+                    });
+
+                    faceapi.draw.drawDetections(canvas, resized);
+                    faceapi.draw.drawFaceLandmarks(canvas, resized);
+                }
+            } catch (error) {
+                console.error('Error en detección:', error);
+            }
+
+            if (stream) {
+                requestAnimationFrame(detectFaceInVideo);
+            }
+        }
+
+        // Capturar foto
+        async function capturePhoto() {
+            personName = personNameInput.value.trim();
+            if (!personName) {
+                alert('Por favor, ingresa tu nombre');
+                personNameInput.focus();
+                return;
+            }
+
+            if (!stream || !modelsLoaded) return;
+
+            try {
+                // Crear flash
+                const flash = document.createElement('div');
+                flash.className = 'flash';
+                document.querySelector('.webcam-container').appendChild(flash);
+                setTimeout(() => flash.remove(), 300);
+
+                // Capturar imagen
+                const tempCanvas = document.createElement('canvas');
+                tempCanvas.width = webcam.videoWidth;
+                tempCanvas.height = webcam.videoHeight;
+                const tempCtx = tempCanvas.getContext('2d');
+                tempCtx.drawImage(webcam, 0, 0);
+
+                const imageData = tempCanvas.toDataURL('image/jpeg');
+
+                // Detectar rostro
+                const img = await faceapi.fetchImage(imageData);
+                const detection = await faceapi
+                    .detectSingleFace(img)
+                    .withFaceLandmarks()
+                    .withFaceDescriptor();
+
+                const photo = {
+                    image: imageData,
+                    descriptor: detection ? detection.descriptor : null,
+                    success: !!detection
+                };
+
+                capturedPhotos.push(photo);
+                if (detection) {
+                    faceDescriptors.push(detection.descriptor);
+                }
+
+                updateUI();
+            } catch (error) {
+                console.error('Error capturando foto:', error);
+                alert('Error al capturar foto: ' + error.message);
+            }
+        }
+
+        // Auto-captura con cuenta regresiva
+        async function autoCapture() {
+            if (isAutoCapturing) return;
+            isAutoCapturing = true;
+
+            autoCaptureBtn.disabled = true;
+            captureBtn.disabled = true;
+
+            for (let i = 0; i < 10; i++) {
+                // Cuenta regresiva de 3 segundos
+                for (let countdown = 3; countdown > 0; countdown--) {
+                    const countdownEl = document.createElement('div');
+                    countdownEl.className = 'countdown';
+                    countdownEl.textContent = countdown;
+                    document.querySelector('.webcam-container').appendChild(countdownEl);
+
+                    await new Promise(resolve => setTimeout(resolve, 1000));
+                    countdownEl.remove();
+                }
+
+                await capturePhoto();
+                await new Promise(resolve => setTimeout(resolve, 500));
+            }
+
+            isAutoCapturing = false;
+            autoCaptureBtn.disabled = false;
+            captureBtn.disabled = false;
+        }
+
+        // Detener cámara
+        function stopCamera() {
+            if (stream) {
+                stream.getTracks().forEach(track => track.stop());
+                stream = null;
+                webcam.srcObject = null;
+
+                const ctx = canvas.getContext('2d');
+                ctx.clearRect(0, 0, canvas.width, canvas.height);
+            }
+
+            startCameraBtn.disabled = false;
+            captureBtn.disabled = true;
+            autoCaptureBtn.disabled = true;
+            stopCameraBtn.disabled = true;
+        }
+
+        // Actualizar UI
+        function updateUI() {
+            const photoCount = capturedPhotos.length;
+            const successCount = capturedPhotos.filter(p => p.success).length;
+            const failCount = photoCount - successCount;
+
+            document.getElementById('photoCount').textContent = photoCount;
+            document.getElementById('successCount').textContent = successCount;
+            document.getElementById('failCount').textContent = failCount;
+
+            // Grid de fotos
+            const grid = document.getElementById('photosGrid');
+            grid.innerHTML = capturedPhotos.map((photo, index) => `
+                <div class="photo-item">
+                    <img src="${photo.image}" alt="Foto ${index + 1}">
+                    <span class="photo-badge ${photo.success ? '' : 'error'}">
+                        ${photo.success ? '✓' : '✗'}
+                    </span>
+                    <button class="delete-photo" onclick="deletePhoto(${index})">×</button>
+                </div>
+            `).join('');
+
+            exportBtn.disabled = successCount === 0;
+        }
+
+        // Eliminar foto
+        function deletePhoto(index) {
+            if (capturedPhotos[index].success) {
+                const descriptorIndex = capturedPhotos
+                    .slice(0, index)
+                    .filter(p => p.success).length;
+                faceDescriptors.splice(descriptorIndex, 1);
+            }
+            capturedPhotos.splice(index, 1);
+            updateUI();
+        }
+
+        // Limpiar todas las fotos
+        function clearAllPhotos() {
+            if (confirm('¿Estás seguro de eliminar todas las fotos capturadas?')) {
+                capturedPhotos = [];
+                faceDescriptors = [];
+                updateUI();
+            }
+        }
+
+        // Exportar datos
+        function exportData() {
+            personName = personNameInput.value.trim();
+            if (!personName) {
+                alert('Por favor, ingresa tu nombre');
+                return;
+            }
+
+            const exportData = {
+                name: personName,
+                descriptors: faceDescriptors.map(d => Array.from(d)),
+                timestamp: new Date().toISOString(),
+                imageCount: faceDescriptors.length,
+                model: 'face-api.js FaceRecognitionNet'
+            };
+
+            const blob = new Blob([JSON.stringify(exportData, null, 2)], { type: 'application/json' });
+            const url = URL.createObjectURL(blob);
+            const a = document.createElement('a');
+            a.href = url;
+            a.download = `face-descriptors-${personName.replace(/\s+/g, '_')}-${Date.now()}.json`;
+            a.click();
+            URL.revokeObjectURL(url);
+
+            const exportInfo = document.getElementById('exportInfo');
+            exportInfo.className = 'status status-success';
+            exportInfo.innerHTML = `
+                ✅ Archivo descargado correctamente.
+                <div class="code-block">
+                    <strong>Siguiente paso:</strong><br>
+                    1. Guarda el archivo JSON como: public/trained-faces/face-descriptors.json<br>
+                    2. Si la carpeta no existe, créala<br>
+                    3. El sistema lo cargará automáticamente al iniciar<br>
+                    4. Total de descriptores entrenados: ${faceDescriptors.length}
+                </div>
+            `;
+        }
+
+        // Event Listeners
+        startCameraBtn.addEventListener('click', startCamera);
+        captureBtn.addEventListener('click', capturePhoto);
+        autoCaptureBtn.addEventListener('click', autoCapture);
+        stopCameraBtn.addEventListener('click', stopCamera);
+        exportBtn.addEventListener('click', exportData);
+        clearBtn.addEventListener('click', clearAllPhotos);
+
+        // Tecla Espacio para capturar
+        document.addEventListener('keydown', (e) => {
+            if (e.code === 'Space' && !captureBtn.disabled && !isAutoCapturing) {
+                e.preventDefault();
+                capturePhoto();
+            }
+        });
+
+        // Inicializar
+        window.addEventListener('load', loadModels);
+    </script>
+</body>
+</html>

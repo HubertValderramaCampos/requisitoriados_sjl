@@ -1,0 +1,16 @@
+# Core ML libraries
+deepface==0.0.92
+opencv-python==4.10.0.84
+tensorflow==2.15.0
+keras==2.15.0
+
+# Image processing
+Pillow==10.4.0
+numpy==1.26.4
+
+# Web framework for API
+flask==3.0.3
+flask-cors==4.0.1
+
+# Utilities
+tqdm==4.66.5
